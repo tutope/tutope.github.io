@@ -69,6 +69,9 @@ button{border:0;background:none;padding:0;cursor:pointer}
 .mini b{display:block;font-weight:800;font-size:15.5px;margin-top:1px}
 .mini b.hot{color:var(--rojo)}
 .mini b.ok{color:var(--verde)}
+.mini b.warn2{color:var(--ambar)}
+.segbar{height:7px;border-radius:99px;background:var(--n700);overflow:hidden}
+.segbar i{display:block;height:100%;border-radius:99px;background:var(--ambar);transition:width .4s cubic-bezier(.2,.8,.2,1)}
 
 .pace{display:flex;align-items:center;gap:8px;margin-top:11px;padding:9px 11px;border-radius:11px;font-size:12px;line-height:1.4}
 .pace.ok{background:var(--verde-d);color:var(--verde)}
@@ -138,6 +141,9 @@ canvas{display:block;width:100%;height:120px}
 .dsg .v2.rest{color:var(--rojo)}
 
 .row{display:flex;align-items:center;gap:9px;padding:10px 0}
+button.row{width:100%;text-align:left;background:none;border:none;font:inherit;color:inherit;cursor:pointer}
+button.row:active{opacity:.7}
+button.row:disabled{cursor:default}
 .row+.row{border-top:1px solid rgba(255,255,255,.055)}
 .row .sw{width:26px;height:26px;border-radius:9px;flex:none}
 .row .rn{flex:1;min-width:0}
@@ -181,10 +187,11 @@ textarea{width:100%;min-height:78px;background:var(--n900);border:1px solid var(
 .navwrap{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;justify-content:center;pointer-events:none}
 .navin{width:100%;max-width:470px;pointer-events:auto;background:linear-gradient(180deg,rgba(11,20,36,.6),var(--n900) 40%);
   backdrop-filter:blur(12px);padding:10px 16px calc(8px + env(safe-area-inset-bottom))}
-.cta{display:grid;grid-template-columns:1fr auto;gap:8px}
+.cta{display:grid;grid-template-columns:1fr auto auto;gap:7px}
 .cta .p{background:var(--verde);color:#04241B;border-radius:14px;padding:14px;font-weight:800;font-size:14.5px;
   display:flex;align-items:center;justify-content:center;gap:8px}
-.cta .s{background:var(--n800);color:var(--tx2);border-radius:14px;padding:14px 16px;font-weight:700;font-size:13.5px}
+.cta .s{background:var(--n800);color:var(--tx2);border-radius:14px;padding:14px 13px;font-weight:700;font-size:13px}
+.cta .a{background:var(--verde-d);color:var(--verde);border-radius:14px;padding:14px 13px;font-weight:700;font-size:13px}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:9px}
 .tb{padding:7px 2px 3px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9px;
   font-family:"DM Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3)}
@@ -229,6 +236,14 @@ textarea{width:100%;min-height:78px;background:var(--n900);border:1px solid var(
   font-variant-numeric:tabular-nums;transition:background .1s}
 .pad button:active{background:var(--n750)}
 .pad button.fn{color:var(--tx2);font-size:17px}
+.pagos{display:grid;grid-template-columns:1fr 1fr;gap:7px;background:var(--n850,var(--n900));
+  border:1px solid var(--n700);border-radius:13px;padding:4px;margin-bottom:12px}
+.pagos button{border-radius:10px;padding:10px 8px;font-size:12.5px;font-weight:600;color:var(--tx2);
+  background:transparent;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .16s,color .16s}
+.pagos button svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.7;fill:none}
+.pagos button.on{background:var(--n700);color:var(--tx1)}
+.pagos button.on.cr{background:rgba(245,179,60,.18);color:var(--ambar)}
+.pagos .hint{grid-column:1/-1;font-size:11px;color:var(--tx3);text-align:center;padding:2px 0 4px;line-height:1.45}
 .meta2{display:flex;gap:8px;margin:12px 0}
 .meta2 button{flex:1;border:1px solid var(--n700);border-radius:11px;padding:10px;font-size:12.5px;color:var(--tx2);
   display:flex;align-items:center;justify-content:center;gap:7px;background:var(--n800)}
@@ -337,7 +352,16 @@ function fijosMes(){return n2(S.fijos.reduce(function(a,f){return a+(+f.monto||0
 function cuotasActivas(){return S.cuotas.filter(function(q){return q.pagadas<q.total;});}
 function cuotasMes(){return n2(cuotasActivas().reduce(function(a,q){return a+(+q.cuota||0);},0));}
 function deudaTotal(){return n2(cuotasActivas().reduce(function(a,q){return a+q.cuota*(q.total-q.pagadas);},0));}
-function repartible(){return n2(S.ingreso-ahorroMes()-fijosMes()-cuotasMes());}
+/* tarjeta: lo cargado con crédito ESTE ciclo (bruto — el banco cobra el total, no el neto) */
+function tarjetaCiclo(){return n2(S.gastos.reduce(function(a,g){return g.pago==="credito"?a+(+g.monto||0):a;},0));}
+/* lo que quedó debiendo del ciclo anterior y ya se descuenta de este mes */
+function tarjetaArrastre(){return n2((S.tarjeta&&S.tarjeta.arrastre)||0);}
+function tarjetaPagada(){return !!(S.tarjeta&&S.tarjeta.pagado);}
+/* renuncias: plata que NO gastaste por elegir la opción barata */
+function renuncias(){return (S.renuncias||[]);}
+function renunciadoTotal(){return n2(renuncias().reduce(function(a,r){return a+(+r.monto||0);},0));}
+function renunciadoLibre(){return n2(renuncias().reduce(function(a,r){return r.guardado?a:a+(+r.monto||0);},0));}
+function repartible(){return n2(S.ingreso-ahorroMes()-fijosMes()-cuotasMes()-tarjetaArrastre());}
 function topes(){return n2(S.cuentas.reduce(function(a,c){return a+(+c.tope||0);},0));}
 function sinRepartir(){return n2(repartible()-topes());}
 function neto(g){return n2(g.monto-(g.reemb||0));}
@@ -373,10 +397,10 @@ function promDe(id){var g=S.gastos.filter(function(x){return x.cuenta===id;});
 
 /* ============ cierre de mes ============ */
 function cerrarMes(manual){
-  var C=ciclo(), sobra=teQueda();
+  var C=ciclo(), sobra=teQueda(), tj=tarjetaCiclo(), rn=renunciadoTotal();
   S.historial.unshift({key:S.cicloKey,nombre:S.cicloNombre||S.cicloKey,ingreso:S.ingreso,
     ahorro:ahorroMes(),ahorroApartado:!!S.ahorro.apartado,fijos:fijosMes(),cuotas:cuotasMes(),repartible:repartible(),
-    gastado:gastado(),sobrante:sobra,
+    gastado:gastado(),sobrante:sobra,tarjeta:tj,tarjetaPrevia:tarjetaArrastre(),renunciado:rn,
     cuentas:S.cuentas.map(function(c){return{nombre:c.nombre,tope:c.tope,gastado:gastoDe(c.id)};})});
   S.historial=S.historial.slice(0,36);
   // solo se acumula lo que de verdad apartaste + lo que sobró
@@ -389,9 +413,14 @@ function cerrarMes(manual){
   S.gastos.forEach(function(g){ if((g.reemb||0)>0 && !g.cobrado)
     S.cobros.push({id:uid(),quien:g.quien||"Sin nombre",monto:g.reemb,nota:g.nota,ts:g.ts}); });
   S.gastos=[];
+  S.renuncias=[];
+  // la tarjeta del mes que cierra se cobra el mes que entra: se descuenta del ingreso
+  S.tarjeta=S.tarjeta||{arrastre:0,pagado:false};
+  S.tarjeta.arrastre=tj; S.tarjeta.pagado=false;
   S.cicloKey=C.key; S.cicloNombre=C.nombre;
   save();
-  if(manual) toast("Mes cerrado. Sobrante al ahorro.");
+  if(manual) toast(tj>0?("Mes cerrado. S/ "+sfmt(tj)+" de tarjeta se descuentan de este mes.")
+                       :"Mes cerrado. Sobrante al ahorro.");
 }
 function chequearCiclo(){
   if(!S) return;
@@ -408,6 +437,7 @@ function mount(){
   root.innerHTML='<div class="shell"><div id="nav"></div><div class="scroll"><div class="body" id="view"></div></div></div>'+
     '<div class="navwrap"><div class="navin">'+
       '<div class="cta"><button class="p" id="cta">+ Anotar gasto</button>'+
+      '<button class="a" id="cta3" title="Me la aguanté">Me aguanté</button>'+
       '<button class="s" id="cta2">Mover</button></div>'+
       '<div class="tabs" id="tabs">'+
         tb("resumen","Resumen",'<path d="M4 12l8-7 8 7v7a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/>')+
@@ -417,6 +447,7 @@ function mount(){
       '</div></div></div>';
   el("#cta").addEventListener("click",function(){abrirGasto(null);});
   el("#cta2").addEventListener("click",function(){abrirMover(null);});
+  el("#cta3").addEventListener("click",function(){abrirRenuncia();});
   el("#tabs").addEventListener("click",function(e){
     var t=e.target.closest("[data-tab]"); if(!t)return;
     V.tab=t.dataset.tab; V.confirm=null; pintaNav(); pintaTabs(); pintaVista();
@@ -447,6 +478,7 @@ function pintaVista(){
 /* ---- resumen ---- */
 function vResumen(){
   var C=ciclo(), rep=repartible(), g=gastado(), q=teQueda();
+  var tjc=tarjetaCiclo(), tja=tarjetaArrastre();
   var pct=rep>0?Math.min(100,Math.round(g/rep*100)):0;
   var diasQ=Math.max(1,C.dias-C.dia+1), porDia=q>0?q/diasQ:0;
   var ideal=rep/C.dias*C.dia, delta=g-ideal;
@@ -457,7 +489,9 @@ function vResumen(){
     '<div class="minis">'+
       '<div class="mini"><div class="k2">Te queda</div><b class="'+(q<0?"hot":"")+'">S/ '+sfmt(q)+'</b></div>'+
       '<div class="mini"><div class="k2">Por día</div><b>S/ '+sfmt(porDia)+'</b></div>'+
-      '<div class="mini"><div class="k2">Ahorrado</div><b class="ok">S/ '+sfmt(S.ahorro.acumulado)+'</b></div>'+
+      (tjc>0
+        ?'<div class="mini"><div class="k2">Con tarjeta</div><b class="warn2">S/ '+sfmt(tjc)+'</b></div>'
+        :'<div class="mini"><div class="k2">Ahorrado</div><b class="ok">S/ '+sfmt(S.ahorro.acumulado)+'</b></div>')+
     '</div>'+
 
     (rep>0?'<div class="pace '+(delta>rep*.05?"bad":"ok")+'"><i></i><span>'+
@@ -465,6 +499,36 @@ function vResumen(){
        :delta<-rep*.05?'Vas S/ '+ent(-delta)+' por debajo del ritmo. Así cierras con saldo.'
        :'Vas justo en el ritmo del mes.')+'</span></div>':'')+
     '</div>';
+
+  // ---- tarjeta: lo del mes pasado que ya se descontó ----
+  if(tja>0){
+    h+='<div class="blk tight" style="background:'+(tarjetaPagada()?'var(--verde-d)':'var(--ambar-d)')+
+       ';border:1px solid '+(tarjetaPagada()?'rgba(49,211,160,.28)':'rgba(245,179,60,.28)')+'">'+
+      '<div style="display:flex;align-items:center;gap:11px">'+
+      '<div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:var('+(tarjetaPagada()?'--verde':'--ambar')+')">'+
+        (tarjetaPagada()?'Tarjeta del mes pasado · pagada':'Debes S/ '+sfmt(tja)+' de la tarjeta')+'</div>'+
+      '<div style="font-size:12px;color:var(--tx2);margin-top:3px;line-height:1.5">'+
+        (tarjetaPagada()
+          ?'Ya está fuera. Los S/ '+sfmt(tja)+' salieron de tu ingreso de este mes.'
+          :'Es lo que cargaste el mes pasado. <b>Ya está descontado</b> de tus S/ '+sfmt(rep)+' para gastar — no lo gastes dos veces.')+
+      '</div></div>'+
+      (tarjetaPagada()?'':'<button class="btn" style="width:auto;padding:9px 13px;background:var(--ambar);color:#231700;font-size:12.5px;flex:none" data-tjpag="1">Ya la pagué</button>')+
+      '</div></div>';
+  }
+  // ---- tarjeta: lo que estás cargando este mes ----
+  if(tjc>0){
+    var pctj=rep>0?Math.round(tjc/rep*100):0;
+    h+='<div class="blk tight">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:11px;margin-bottom:8px">'+
+      '<div style="font-weight:700;font-size:13.5px">Este mes vas con tarjeta</div>'+
+      '<div style="font-family:\'DM Mono\',monospace;font-size:15px;color:var(--ambar)">S/ '+sfmt(tjc)+'</div></div>'+
+      '<div class="segbar"><i style="width:'+Math.min(100,pctj)+'%"></i></div>'+
+      '<div class="note2" style="margin-top:9px">'+
+        (tjc>=rep*0.5
+          ?'<b style="color:var(--ambar)">Más de la mitad de tu mes es deuda.</b> El '+(S.diaInicio||1)+' te van a llegar S/ '+sfmt(S.ingreso)+' y S/ '+sfmt(tjc)+' ya tienen dueño.'
+          :'Se te cobra el mes que viene. Tu próximo mes arranca con S/ '+sfmt(n2(S.ingreso-tjc))+' reales, no con S/ '+sfmt(S.ingreso)+'.')+
+      '</div></div>';
+  }
 
   if(!S.ahorro.apartado && ahorroMes()>0){
     h+='<div class="blk tight" style="background:var(--ambar-d);border:1px solid rgba(245,179,60,.28)">'+
@@ -490,6 +554,30 @@ function vResumen(){
     h+='</div>';
   }else if(S.gastos.length){
     h+='<div class="okbox"><span>✓</span><div>Nada en rojo. <b>Todas tus cuentas dentro del tope.</b></div></div>';
+  }
+
+  // ---- lo que te aguantaste ----
+  var rnT=renunciadoTotal(), rnL=renunciadoLibre();
+  if(rnT>0){
+    var lst=renuncias().slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,4);
+    h+='<div class="blk"><div class="bh"><h3>Te la aguantaste</h3>'+
+       '<span class="pill ok">S/ '+sfmt(rnT)+'</span></div>';
+    lst.forEach(function(r){
+      var c=cta(r.cuenta), tag=r.guardado?"button":"button";
+      h+='<button class="row" '+(r.guardado?"disabled":'data-rr="'+r.id+'"')+' style="'+(r.guardado?"opacity:.55":"")+'"><span class="sw" style="background:var(--c'+((c&&c.c)||5)+')"></span>'+
+        '<span class="rn"><b>'+esc(r.nota||((c&&c.nombre)||"Ahorro"))+'</b>'+
+        '<span>'+((c?esc(c.nombre):"—"))+(r.guardado?" · guardado":" · toca para decidir")+'</span></span>'+
+        '<span class="rv" style="color:var(--verde)">+'+sfmt(r.monto)+'</span></button>';
+    });
+    if(renuncias().length>4) h+='<div class="note2" style="margin-top:9px">y '+(renuncias().length-4)+' más.</div>';
+    if(rnL>0){
+      h+='<div class="note2" style="margin-top:12px">Esta plata <b>sigue en tu presupuesto</b>. Toca un ítem para ahorrarlo, moverlo a otra cuenta o dejarlo como gasto. Si no decides, se va sola al ahorro cuando cierre el mes.</div>';
+      if(renuncias().filter(function(r){return !r.guardado;}).length>1)
+        h+='<div class="sp"></div><button class="btn" style="background:var(--verde);color:#04241B" data-rguard="1">Ahorrar todo · S/ '+sfmt(rnL)+'</button>';
+    }else{
+      h+='<div class="note2" style="margin-top:12px">Todo esto ya salió de tu presupuesto y está en tu ahorro. Plata que no existía hace un mes.</div>';
+    }
+    h+='</div>';
   }
 
   var otr=S.cuentas.filter(function(c){return c.sys;})[0];
@@ -718,7 +806,7 @@ function vAjustes(){
 /* ============ eventos de vista ============ */
 function wireVista(v){
   v.addEventListener("click",function(e){
-    var t=e.target.closest("[data-ct],[data-goto],[data-f],[data-del],[data-pag],[data-apart],[data-sacar],[data-col],[data-rmc],[data-addc],[data-rmf],[data-addf],[data-rmq],[data-addq],[data-salir],[data-entrar],[data-cp],[data-dl],[data-rs],[data-cerrar],[data-cerrar2],[data-reset],[data-reset2],[data-cancel]");
+    var t=e.target.closest("[data-ct],[data-goto],[data-f],[data-del],[data-pag],[data-apart],[data-tjpag],[data-rguard],[data-rr],[data-sacar],[data-col],[data-rmc],[data-addc],[data-rmf],[data-addf],[data-rmq],[data-addq],[data-salir],[data-entrar],[data-cp],[data-dl],[data-rs],[data-cerrar],[data-cerrar2],[data-reset],[data-reset2],[data-cancel]");
     if(!t)return; var d=t.dataset;
     if(d.ct!==undefined&&d.ct){ abrirGasto(d.ct); return; }
     if(d.goto){ V.tab=d.goto; pintaNav(); pintaTabs(); pintaVista(); return; }
@@ -732,6 +820,10 @@ function wireVista(v){
     }
     if(d.apart){ S.ahorro.acumulado=n2((S.ahorro.acumulado||0)+ahorroMes()); S.ahorro.apartado=true;
       save(); pintaVista(); toast("Bien. <b>Ese ahorro ya es real.</b>"); return; }
+    if(d.rr){ abrirResolverRenuncia(d.rr); return; }
+    if(d.rguard){ guardarRenunciado(); return; }
+    if(d.tjpag){ S.tarjeta=S.tarjeta||{arrastre:0,pagado:false}; S.tarjeta.pagado=true;
+      save(); pintaVista(); toast("Tarjeta pagada. <b>Empiezas limpio.</b>"); return; }
     if(d.sacar){ abrirSacar(); return; }
     if(d.col){ var c=cta(d.col); if(c){c.c=c.c%6+1; save(); pintaVista();} return; }
     if(d.rmc){ var cx=cta(d.rmc); if(cx&&cx.sys){ toast("Otros no se puede borrar: es donde cae lo que no clasificas"); return; }
@@ -829,7 +921,7 @@ function cab(t){return '<div class="shh"><h2>'+t+'</h2><button class="xc" data-c
 /* ---- anotar gasto ---- */
 function abrirGasto(id){
   if(!S.cuentas.length){ toast("Primero crea una cuenta en Plan"); return; }
-  SH={cuenta:id||S.cuentas[0].id, txt:"", nota:"", fecha:null, reemb:0, quien:""};
+  SH={cuenta:id||S.cuentas[0].id, txt:"", nota:"", fecha:null, reemb:0, quien:"", pago:(S.ultPago==="credito"?"credito":"efectivo")};
   var chips=S.cuentas.map(function(c){
     return '<button class="ch'+(c.id===SH.cuenta?" on":"")+'" data-pk="'+c.id+'" style="--cc:var(--c'+c.c+')">'+
       '<i style="background:var(--c'+c.c+')"></i>'+esc(c.nombre)+'</button>';}).join("");
@@ -839,6 +931,11 @@ function abrirGasto(id){
       '<button class="xc" data-close="1" style="padding:6px 0">Cancelar</button>'+
       '<div class="lbl">Anotar gasto</div><div style="width:56px"></div></div>'+
     '<div class="chips">'+chips+'</div>'+
+    '<div class="pagos" id="pg">'+
+      '<button data-pago="efectivo"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>Efectivo/débito</button>'+
+      '<button data-pago="credito" class="cr"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Crédito</button>'+
+      '<div class="hint" id="pgh"></div>'+
+    '</div>'+
     '<div class="kzone"><div class="kamt zero" id="ka"><span class="c">S/</span><span id="kv">0</span></div>'+
       '<div class="khint" id="kh"></div></div>'+
     '<div class="meta2"><button id="bfec"><span id="lfec">Hoy</span></button>'+
@@ -846,10 +943,12 @@ function abrirGasto(id){
       '<button id="bcob"><span id="lcob">Cobro</span></button></div>'+
     '<div class="qk">'+[5,10,20,50].map(function(q){return '<button data-q="'+q+'">+'+q+'</button>';}).join("")+'</div>'+
     '<div class="pad">'+keys.map(function(k){return '<button data-k="'+k+'"'+(k===","||k==="⌫"?' class="fn"':'')+'>'+k+'</button>';}).join("")+'</div>'+
-    '<div class="sp"></div><button class="btn pri" id="ok">Guardar gasto</button>',
+    '<div class="sp"></div><button class="btn pri" id="ok">Guardar gasto</button>'+
+    '<button class="btn gh" data-close="1" style="margin-top:9px">Cancelar</button>',
     function(sh){
       sh.addEventListener("click",function(e){
-        var t=e.target.closest("[data-pk],[data-q],[data-k],#ok,#bfec,#bnot,#bcob"); if(!t)return;
+        var t=e.target.closest("[data-pk],[data-pago],[data-q],[data-k],#ok,#bfec,#bnot,#bcob"); if(!t)return;
+        if(t.dataset.pago){ SH.pago=t.dataset.pago; pintaPago(sh); return; }
         if(t.dataset.pk){ SH.cuenta=t.dataset.pk;
           els(".ch",sh).forEach(function(p){p.classList.toggle("on",p.dataset.pk===SH.cuenta);}); pintaK(sh); return; }
         if(t.dataset.q){ SH.txt=String(n2((parseFloat(SH.txt.replace(",","."))||0)+ +t.dataset.q)).replace(".",","); pintaK(sh,1); return; }
@@ -863,8 +962,16 @@ function abrirGasto(id){
         if(t.id==="bcob"){ pedirCobro(sh); return; }
         if(t.id==="ok"){ guardarGasto(); }
       });
-      pintaK(sh);
+      pintaK(sh); pintaPago(sh);
     },true);
+}
+function pintaPago(sh){
+  var z=el("#pg",sh); if(!z) return;
+  els("[data-pago]",z).forEach(function(b){ b.classList.toggle("on",b.dataset.pago===SH.pago); });
+  var h=el("#pgh",z);
+  if(h) h.textContent = SH.pago==="credito"
+    ? "Se te cobra el mes que viene. Sale de tu presupuesto igual."
+    : "Sale de tu plata ahora mismo.";
 }
 function valK(){var v=parseFloat((SH.txt||"0").replace(",","."));return isNaN(v)?0:v;}
 function pintaK(sh,bump){
@@ -939,11 +1046,12 @@ function pedirCobro(sh){
     });
 }
 function abrirGastoRestaurar(){
-  var keep={cuenta:SH.cuenta,txt:SH.txt,nota:SH.nota,fecha:SH.fecha,reemb:SH.reemb,quien:SH.quien};
+  var keep={cuenta:SH.cuenta,txt:SH.txt,nota:SH.nota,fecha:SH.fecha,reemb:SH.reemb,quien:SH.quien,pago:SH.pago};
   abrirGasto(keep.cuenta);
   SH.txt=keep.txt; SH.nota=keep.nota; SH.fecha=keep.fecha; SH.reemb=keep.reemb; SH.quien=keep.quien;
+  SH.pago=(keep.pago==="credito"?"credito":"efectivo");
   var sh=el(".sh",layer);
-  pintaK(sh);
+  pintaK(sh); pintaPago(sh);
   if(SH.fecha){ var d=new Date(SH.fecha);
     var lf=el("#lfec",sh); if(lf) lf.textContent=(d0(new Date()).getTime()===d0(d).getTime())?"Hoy":DIAS[d.getDay()]+" "+d.getDate();
     var bf=el("#bfec",sh); if(bf&&d0(new Date()).getTime()!==d0(d).getTime()) bf.classList.add("set"); }
@@ -965,11 +1073,186 @@ function guardarGasto(){
 function commit(v,cid,nota,fecha){
   var ts=fecha? (fecha + (new Date().getHours()*3600000)) : Date.now();
   S.gastos.push({id:uid(),cuenta:cid,monto:n2(v),ts:ts,nota:nota||"",
-    reemb:n2(SH.reemb||0),quien:(SH.quien||""),cobrado:false});
+    reemb:n2(SH.reemb||0),quien:(SH.quien||""),cobrado:false,
+    pago:(SH.pago==="credito"?"credito":"efectivo")});
+  S.ultPago=(SH.pago==="credito"?"credito":"efectivo");
+  if(SH._renunciaId){ S.renuncias=(S.renuncias||[]).filter(function(r){return r.id!==SH._renunciaId;}); SH._renunciaId=null; }
   save(); cerrarHoja();
   if(!RM){ var f=document.createElement("div"); f.className="float"; f.textContent="−"+sfmt(v);
     document.body.appendChild(f); setTimeout(function(){f.remove();},1100); }
   V.tab="resumen"; pintaNav(); pintaTabs(); pintaVista();
+}
+
+/* ---- me la aguanté: plata que NO gastaste ---- */
+function abrirRenuncia(){
+  if(!S.cuentas.length){ toast("Primero crea una cuenta en Plan"); return; }
+  SH={cuenta:S.cuentas[0].id, txt:"", nota:""};
+  var chips=S.cuentas.map(function(c){
+    return '<button class="ch'+(c.id===SH.cuenta?" on":"")+'" data-pk="'+c.id+'" style="--cc:var(--c'+c.c+')">'+
+      '<i style="background:var(--c'+c.c+')"></i>'+esc(c.nombre)+'</button>';}).join("");
+  var keys=["1","2","3","4","5","6","7","8","9",",","0","⌫"];
+  abrirHoja(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+      '<button class="xc" data-close="1" style="padding:6px 0">Cancelar</button>'+
+      '<div class="lbl">Me la aguanté</div><div style="width:56px"></div></div>'+
+    '<div class="note2" style="margin-bottom:13px">Cuánto <b>no gastaste</b> por elegir la opción barata. El micro en vez del taxi, la previa en vez del trago afuera.</div>'+
+    '<div class="chips">'+chips+'</div>'+
+    '<div class="kzone"><div class="kamt zero" id="ka"><span class="c">S/</span><span id="kv">0</span></div>'+
+      '<div class="khint" id="kh"></div></div>'+
+    '<div class="meta2"><button id="bnot"><span id="lnot">Qué fue</span></button></div>'+
+    '<div class="qk">'+[5,10,20,50].map(function(q){return '<button data-q="'+q+'">+'+q+'</button>';}).join("")+'</div>'+
+    '<div class="pad">'+keys.map(function(k){return '<button data-k="'+k+'"'+(k===","||k==="⌫"?' class="fn"':'')+'>'+k+'</button>';}).join("")+'</div>'+
+    '<div class="sp"></div><button class="btn pri" id="rok">Guardar</button>'+
+    '<button class="btn gh" data-close="1" style="margin-top:9px">Cancelar</button>',
+    function(sh){
+      sh.addEventListener("click",function(e){
+        var t=e.target.closest("[data-pk],[data-q],[data-k],#rok,#bnot"); if(!t)return;
+        if(t.dataset.pk){ SH.cuenta=t.dataset.pk;
+          els(".ch",sh).forEach(function(p){p.classList.toggle("on",p.dataset.pk===SH.cuenta);}); return; }
+        if(t.dataset.q){ SH.txt=String(n2((parseFloat(SH.txt.replace(",","."))||0)+ +t.dataset.q)).replace(".",","); pintaK(sh,1); return; }
+        if(t.dataset.k){ var k=t.dataset.k;
+          if(k==="⌫") SH.txt=SH.txt.slice(0,-1);
+          else if(k===","){ if(SH.txt.indexOf(",")<0) SH.txt=(SH.txt||"0")+","; }
+          else { if(/,\d\d$/.test(SH.txt))return; if(SH.txt==="0")SH.txt=k; else SH.txt+=k; }
+          pintaK(sh,1); return; }
+        if(t.id==="bnot"){ pedirNotaR(sh); return; }
+        if(t.id==="rok"){ guardarRenuncia(); }
+      });
+      pintaK(sh);
+    },true);
+}
+function pedirNotaR(sh){
+  abrirHoja(cab("Qué fue")+
+    '<div class="fld"><input type="text" id="nt" placeholder="micro en vez de taxi…" value="'+esc(SH.nota||"")+'"></div>'+
+    '<button class="btn pri" id="ntok">Listo</button>',
+    function(s2){
+      var i=el("#nt",s2); setTimeout(function(){i.focus();},60);
+      el("#ntok",s2).addEventListener("click",function(){
+        SH.nota=i.value.trim();
+        var keep={cuenta:SH.cuenta,txt:SH.txt,nota:SH.nota};
+        cerrarHoja(); abrirRenuncia();
+        SH.cuenta=keep.cuenta; SH.txt=keep.txt; SH.nota=keep.nota;
+        var s3=el(".sh",layer); pintaK(s3);
+        els(".ch",s3).forEach(function(p){p.classList.toggle("on",p.dataset.pk===SH.cuenta);});
+        if(SH.nota){ var ln=el("#lnot",s3); if(ln) ln.textContent=SH.nota.slice(0,16);
+          var bn=el("#bnot",s3); if(bn) bn.classList.add("set"); }
+      });
+    });
+}
+function guardarRenuncia(){
+  var v=valK();
+  if(!(v>0)){ toast("Escribe cuánto no gastaste"); return; }
+  S.renuncias=S.renuncias||[];
+  S.renuncias.push({id:uid(),cuenta:SH.cuenta,monto:n2(v),nota:SH.nota||"",ts:Date.now(),guardado:false});
+  save(); cerrarHoja();
+  V.tab="resumen"; pintaNav(); pintaTabs(); pintaVista();
+  toast("Te aguantaste <b>S/ "+sfmt(v)+"</b>. Esa plata sigue siendo tuya.");
+}
+/* mandar al ahorro de verdad: baja el tope de la cuenta y sube el acumulado */
+function guardarRenunciado(){
+  var movido=0, bloqueado=0;
+  (S.renuncias||[]).forEach(function(r){
+    if(r.guardado) return;
+    var c=cta(r.cuenta);
+    if(!c){ r.guardado=true; movido=n2(movido+r.monto); S.ahorro.acumulado=n2((S.ahorro.acumulado||0)+r.monto); return; }
+    var libre=n2(c.tope-gastoDe(c.id));
+    var mv=Math.min(r.monto,Math.max(0,libre));
+    if(mv<=0){ bloqueado=n2(bloqueado+r.monto); return; }
+    c.tope=n2(c.tope-mv);
+    S.ahorro.acumulado=n2((S.ahorro.acumulado||0)+mv);
+    movido=n2(movido+mv);
+    if(mv>=r.monto-0.005){ r.guardado=true; } else { r.monto=n2(r.monto-mv); }
+  });
+  save(); pintaVista();
+  if(movido>0) toast("S/ "+sfmt(movido)+" fuera de tu presupuesto. <b>Ya es ahorro real.</b>");
+  else toast("Esas cuentas ya no tienen saldo libre. No se puede guardar plata que ya gastaste.");
+}
+
+/* ---- resolver un "me aguanté" puntual: 3 caminos ---- */
+function abrirResolverRenuncia(id){
+  var r=null;
+  (S.renuncias||[]).forEach(function(x){ if(x.id===id && !x.guardado) r=x; });
+  if(!r) return;
+  var c=cta(r.cuenta);
+  abrirHoja(cab("¿Qué haces con esto?")+
+    '<div class="note2" style="margin-bottom:14px">Te aguantaste <b>S/ '+sfmt(r.monto)+'</b>'+
+      (r.nota?" · "+esc(r.nota):"")+(c?" en <b>"+esc(c.nombre)+"</b>":"")+'.</div>'+
+    '<button class="src" data-rz="ahorro"><span class="pp" style="background:var(--verde)"></span>'+
+      '<span class="sn">Ahorrarlo<em>Sale de tu presupuesto para siempre</em></span>'+
+      '<span class="sv">+'+sfmt(r.monto)+'</span></button>'+
+    '<button class="src" data-rz="mover"><span class="pp" style="background:var(--ambar)"></span>'+
+      '<span class="sn">Moverlo a otra cuenta<em>Gástalo en otra actividad este mes</em></span>'+
+      '<span class="sv">'+sfmt(r.monto)+'</span></button>'+
+    '<button class="src" data-rz="gasto"><span class="pp" style="background:var(--tx3)"></span>'+
+      '<span class="sn">Registrarlo como gasto<em>Al final sí lo gastaste</em></span>'+
+      '<span class="sv">'+sfmt(r.monto)+'</span></button>'+
+    '<div class="sp"></div><button class="btn gh" data-close="1">Cancelar</button>',
+    function(sh){
+      sh.addEventListener("click",function(e){
+        var t=e.target.closest("[data-rz]"); if(!t)return;
+        if(t.dataset.rz==="ahorro") renunciaAhorrar(id);
+        else if(t.dataset.rz==="mover") abrirRenunciaMover(id);
+        else if(t.dataset.rz==="gasto") renunciaGasto(id);
+      });
+    });
+}
+function renunciaAhorrar(id){
+  var r=null; (S.renuncias||[]).forEach(function(x){ if(x.id===id && !x.guardado) r=x; });
+  if(!r) return;
+  var c=cta(r.cuenta);
+  if(!c){ r.guardado=true; S.ahorro.acumulado=n2((S.ahorro.acumulado||0)+r.monto);
+    save(); cerrarHoja(); pintaVista(); toast("Ahorrado."); return; }
+  var libre=n2(c.tope-gastoDe(c.id)), mv=Math.min(r.monto,Math.max(0,libre));
+  if(mv<=0){ toast(esc(c.nombre)+" ya no tiene saldo libre. No se puede ahorrar plata que ya gastaste."); return; }
+  c.tope=n2(c.tope-mv); S.ahorro.acumulado=n2((S.ahorro.acumulado||0)+mv);
+  var msg="S/ "+sfmt(mv)+" fuera de tu presupuesto. <b>Ya es ahorro real.</b>";
+  if(mv>=r.monto-0.005){ r.guardado=true; } else { r.monto=n2(r.monto-mv); msg="Solo había S/ "+sfmt(mv)+" libres. El resto queda pendiente."; }
+  save(); cerrarHoja(); pintaVista(); toast(msg);
+}
+function abrirRenunciaMover(id){
+  var r=null; (S.renuncias||[]).forEach(function(x){ if(x.id===id && !x.guardado) r=x; });
+  if(!r) return;
+  var src=cta(r.cuenta);
+  var opts=S.cuentas.filter(function(x){return x.id!==r.cuenta;});
+  if(!opts.length){ toast("Necesitas otra cuenta para moverlo"); return; }
+  var chips=opts.map(function(x){return '<button class="ch" data-to="'+x.id+'" style="--cc:var(--c'+x.c+')">'+
+    '<i style="background:var(--c'+x.c+')"></i>'+esc(x.nombre)+'</button>';}).join("");
+  abrirHoja(cab("Moverlo a...")+
+    '<div class="note2" style="margin-bottom:13px">S/ '+sfmt(r.monto)+' que te aguantaste'+
+      (src?" en "+esc(src.nombre):"")+' pasan al tope de la cuenta que elijas. Puedes gastarlos ahí este mes.</div>'+
+    '<div class="chips" style="flex-wrap:wrap;overflow:visible">'+chips+'</div>'+
+    '<div class="sp"></div><button class="btn pri" id="rmok" disabled>Elige una cuenta</button>',
+    function(sh){
+      var to=null;
+      sh.addEventListener("click",function(e){
+        var tc=e.target.closest("[data-to]");
+        if(tc){ to=tc.dataset.to;
+          els("[data-to]",sh).forEach(function(b){b.classList.toggle("on",b.dataset.to===to);});
+          var ok=el("#rmok",sh); ok.disabled=false; ok.textContent="Mover a "+esc(cta(to).nombre);
+          return; }
+        if(e.target.closest("#rmok") && to){ renunciaMover(id,to); }
+      });
+    });
+}
+function renunciaMover(id,toId){
+  var r=null; (S.renuncias||[]).forEach(function(x){ if(x.id===id && !x.guardado) r=x; });
+  var to=cta(toId); if(!r||!to) return;
+  var c=cta(r.cuenta);
+  var libre=c?n2(c.tope-gastoDe(c.id)):r.monto, mv=Math.min(r.monto,Math.max(0,libre));
+  if(mv<=0){ toast("Esa cuenta ya no tiene saldo libre para mover."); return; }
+  if(c) c.tope=n2(c.tope-mv);
+  to.tope=n2(to.tope+mv);
+  if(mv>=r.monto-0.005){ r.guardado=true; } else { r.monto=n2(r.monto-mv); }
+  save(); cerrarHoja(); pintaVista();
+  toast("S/ "+sfmt(mv)+" ahora en <b>"+esc(to.nombre)+"</b>. Gástalo ahí.");
+}
+function renunciaGasto(id){
+  var r=null; (S.renuncias||[]).forEach(function(x){ if(x.id===id && !x.guardado) r=x; });
+  if(!r) return;
+  cerrarHoja();
+  SH={cuenta:r.cuenta, txt:String(r.monto).replace(".",","), nota:r.nota||"", fecha:null, reemb:0, quien:"",
+      pago:(S.ultPago==="credito"?"credito":"efectivo"), _renunciaId:r.id};
+  guardarGasto();
 }
 
 /* ---- reasignar ---- */
@@ -1166,7 +1449,12 @@ function restaurar(){
   }catch(e){ toast("Esa copia no se puede leer"); }
 }
 function normaliza(o){
-  o.v=3; o.gastos=o.gastos||[]; o.cuentas=o.cuentas||[]; o.fijos=o.fijos||[]; o.cuotas=o.cuotas||[];
+  o.v=4; o.gastos=o.gastos||[]; o.cuentas=o.cuentas||[]; o.fijos=o.fijos||[]; o.cuotas=o.cuotas||[];
+  o.tarjeta=o.tarjeta||{arrastre:0,pagado:false};
+  o.renuncias=o.renuncias||[];
+  o.tarjeta.arrastre=+o.tarjeta.arrastre||0; o.tarjeta.pagado=!!o.tarjeta.pagado;
+  o.ultPago=(o.ultPago==="credito")?"credito":"efectivo";
+  o.gastos.forEach(function(g){ if(g.pago!=="credito") g.pago="efectivo"; });
   o.historial=o.historial||[]; o.cobros=o.cobros||[]; o.ahorro=o.ahorro||{pct:0,acumulado:0,apartado:false,rupturas:[]};
   o.ahorro.rupturas=o.ahorro.rupturas||[]; o.ahorro.noApartados=o.ahorro.noApartados||0; o.diaInicio=o.diaInicio||1; o.ingreso=o.ingreso||0;
   var hayOtros=false;
@@ -1249,6 +1537,8 @@ async function sincronizarAlEntrar(){
 /* ---------- pantalla de cuenta ---------- */
 var AU={modo:"entrar",cargando:false,msg:"",em:"",pw:""};
 function authHTML(){
+  if(AU.modo==="olvide") return olvideHTML();
+  if(AU.modo==="nueva")  return nuevaHTML();
   var entrar=AU.modo==="entrar";
   return '<div class="setup">'+
     '<div class="lbl">Plata del mes</div>'+
@@ -1267,13 +1557,96 @@ function authHTML(){
     '<button class="btn pri" id="ago">'+(AU.cargando?'Un momento…':(entrar?'Entrar':'Crear cuenta'))+'</button>'+
     '<div class="sp"></div>'+
     '<button class="btn gh" id="amodo">'+(entrar?'No tengo cuenta, crear una':'Ya tengo cuenta, entrar')+'</button>'+
+    (entrar?'<div class="sp"></div><button class="btn gh" id="aolv" style="color:var(--tx3)">Olvidé mi contraseña</button>':'')+
     '<div class="sp"></div>'+
     '<button class="btn gh" id="alocal" style="color:var(--tx3)">Usar sin cuenta en este equipo</button>'+
     '<p class="note2" style="margin-top:16px">Sin cuenta funciona igual, pero los datos viven solo en este navegador y no pasan a otro equipo.</p>'+
     '</div>';
 }
+
+function olvideHTML(){
+  return '<div class="setup">'+
+    '<div class="lbl">Plata del mes</div>'+
+    '<h1>Recupera <em>tu cuenta</em>.</h1>'+
+    '<p class="sb">Te mandamos un enlace al correo. Lo abres desde este mismo teléfono y pones una contraseña nueva.</p>'+
+    '<div class="blk"><div class="fld" style="margin:0"><div class="lb">Tu correo</div>'+
+    '<input type="text" id="aem" inputmode="email" autocomplete="email" value="'+esc(AU.em||"")+'" placeholder="tucorreo@gmail.com"></div></div>'+
+    (AU.msg?'<div class="note2" style="color:var('+(AU.ok?'--verde':'--rojo')+');margin-bottom:11px">'+esc(AU.msg)+'</div>':'')+
+    '<div class="sp"></div>'+
+    '<button class="btn pri" id="aenv">'+(AU.cargando?'Enviando…':'Mandarme el enlace')+'</button>'+
+    '<div class="sp"></div>'+
+    '<button class="btn gh" id="avolver">Volver</button>'+
+    '<p class="note2" style="margin-top:16px">Si no te llega en un par de minutos, revisa spam. El enlace vence en una hora.</p>'+
+    '</div>';
+}
+function nuevaHTML(){
+  return '<div class="setup">'+
+    '<div class="lbl">Plata del mes</div>'+
+    '<h1>Pon tu <em>nueva contraseña</em>.</h1>'+
+    '<p class="sb">Entraste con el enlace del correo. Elige una contraseña y ya quedas dentro.</p>'+
+    '<div class="blk"><div class="fld" style="margin:0"><div class="lb">Nueva contraseña (mínimo 6)</div>'+
+    '<input type="password" id="anw" autocomplete="new-password" placeholder="••••••"></div></div>'+
+    (AU.msg?'<div class="note2" style="color:var(--rojo);margin-bottom:11px">'+esc(AU.msg)+'</div>':'')+
+    '<div class="sp"></div>'+
+    '<button class="btn pri" id="anok">'+(AU.cargando?'Guardando…':'Guardar y entrar')+'</button>'+
+    '</div>';
+}
 function wireAuth(){
   root.innerHTML=authHTML();
+
+  // ---- pedir enlace de recuperación ----
+  if(AU.modo==="olvide"){
+    el("#avolver").addEventListener("click",function(){
+      AU.em=(el("#aem").value||"").trim(); AU.modo="entrar"; AU.msg=""; AU.ok=false; wireAuth(); });
+    el("#aenv").addEventListener("click",async function(){
+      if(AU.cargando) return;
+      var em=(el("#aem").value||"").trim(); AU.em=em;
+      if(!em||em.indexOf("@")<0){ AU.msg="Escribe un correo válido."; AU.ok=false; return wireAuth(); }
+      AU.cargando=true; AU.msg=""; wireAuth();
+      try{
+        var base=location.origin+location.pathname;
+        await SB.auth.resetPasswordForEmail(em,{redirectTo:base});
+      }catch(e){}
+      AU.cargando=false; AU.ok=true;
+      AU.msg="Listo. Si ese correo tiene cuenta, ya te llegó el enlace. Ábrelo desde este mismo equipo.";
+      wireAuth();
+    });
+    el("#aem").addEventListener("keydown",function(e){ if(e.key==="Enter") el("#aenv").click(); });
+    return;
+  }
+
+  // ---- poner contraseña nueva ----
+  if(AU.modo==="nueva"){
+    var inw=el("#anw"); setTimeout(function(){ try{inw.focus();}catch(e){} },80);
+    el("#anok").addEventListener("click",async function(){
+      if(AU.cargando) return;
+      var pw=el("#anw").value||"";
+      if(pw.length<6){ AU.msg="La contraseña necesita al menos 6 caracteres."; return wireAuth(); }
+      AU.cargando=true; AU.msg=""; wireAuth();
+      try{
+        var r=await SB.auth.updateUser({password:pw});
+        AU.cargando=false;
+        if(r.error){
+          var em2=r.error.message||"";
+          AU.msg=/should be different|same.*password/i.test(em2)
+            ? "Esa es la contraseña que ya tenías. Pon una distinta."
+            : (/expired|invalid/i.test(em2) ? "El enlace venció. Pide uno nuevo." : em2);
+          return wireAuth();
+        }
+        var ses=await SB.auth.getSession();
+        USER=(ses&&ses.data&&ses.data.session)?ses.data.session.user:USER;
+        AU={modo:"entrar",cargando:false,msg:"",em:"",pw:""};
+        if(USER){ await sincronizarAlEntrar(); mount(); toast("Contraseña cambiada. <b>Ya estás dentro.</b>"); }
+        else wireAuth();
+      }catch(e){ AU.cargando=false; AU.msg="No se pudo cambiar. Intenta de nuevo."; wireAuth(); }
+    });
+    el("#anw").addEventListener("keydown",function(e){ if(e.key==="Enter") el("#anok").click(); });
+    return;
+  }
+
+  var bo=el("#aolv");
+  if(bo) bo.addEventListener("click",function(){
+    AU.em=el("#aem").value||""; AU.modo="olvide"; AU.msg=""; AU.ok=false; wireAuth(); });
   el("#amodo").addEventListener("click",function(){
     AU.em=el("#aem").value||""; AU.pw=el("#apw").value||"";
     AU.modo=AU.modo==="entrar"?"crear":"entrar"; AU.msg=""; wireAuth(); });
@@ -1341,14 +1714,26 @@ async function boot(){
   if(!SB){
     SYNC="local"; S=load(); if(S){ S=normaliza(S); save(); } return mount();
   }
+  // ¿venimos del enlace de recuperación del correo?
+  var hash=(location.hash||"")+"&"+(location.search||"");
+  var esRecuperar=/type=recovery/.test(hash);
+  if(esRecuperar){
+    try{ SB.auth.onAuthStateChange(function(ev){ if(ev==="PASSWORD_RECOVERY"){ AU.modo="nueva"; wireAuth(); } }); }catch(e){}
+  }
   try{
     var ses=await SB.auth.getSession();
     if(ses && ses.data && ses.data.session){
       USER=ses.data.session.user;
+      if(esRecuperar){
+        try{ history.replaceState(null,"",location.pathname); }catch(e){}
+        AU.modo="nueva"; AU.msg=""; AU.cargando=false;
+        return wireAuth();
+      }
       await sincronizarAlEntrar();
       return mount();
     }
   }catch(e){}
+  if(esRecuperar){ AU.modo="entrar"; AU.msg="El enlace venció o ya se usó. Pide uno nuevo."; }
   wireAuth();
 }
 async function salir(){
@@ -1472,6 +1857,29 @@ function wireSetup(){
 }
 
 /* ============ arranque ============ */
+/* puente de pruebas: solo con ?__t=1 o abriendo el archivo local. No expone nada
+   que el usuario no vea ya en su propio localStorage. */
+if(location.protocol==="file:" || /[?&]__t=1/.test(location.search)){
+  window.__plata={
+    get S(){return S;}, set S(x){S=x;},
+    get V(){return V;}, get AU(){return AU;},
+    repartible:function(){return repartible();},
+    teQueda:function(){return teQueda();},
+    tarjetaCiclo:function(){return tarjetaCiclo();},
+    tarjetaArrastre:function(){return tarjetaArrastre();},
+    tarjetaPagada:function(){return tarjetaPagada();},
+    renunciadoTotal:function(){return renunciadoTotal();},
+    renunciadoLibre:function(){return renunciadoLibre();},
+    abrirResolverRenuncia:function(id){return abrirResolverRenuncia(id);},
+    renunciaAhorrar:function(id){return renunciaAhorrar(id);},
+    abrirRenunciaMover:function(id){return abrirRenunciaMover(id);},
+    renunciaMover:function(id,to){return renunciaMover(id,to);},
+    renunciaGasto:function(id){return renunciaGasto(id);},
+    cta:function(i){return cta(i);},
+    gastoDe:function(i){return gastoDe(i);},
+    cerrarMes:function(){return cerrarMes(true);}
+  };
+}
 window.addEventListener("resize",function(){ if(S&&V.tab==="resumen") dibujaChart(); });
 boot();
 })();
