@@ -316,10 +316,19 @@ function els(q,r){return Array.prototype.slice.call((r||document).querySelectorA
 function d0(d){var x=new Date(d);x.setHours(0,0,0,0);return x;}
 
 /* ============ estado ============ */
-var KEY="plata_v3";
+var KEY="plata_data";
+var KEY_LEGACY="plata_v3";
 var S=null, V={tab:"resumen",filtro:null,confirm:null}, SH={};
 
-function load(){try{var r=localStorage.getItem(KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+function load(){
+  try{
+    var r=localStorage.getItem(KEY);
+    if(r) return JSON.parse(r);
+    var leg=localStorage.getItem(KEY_LEGACY);
+    if(leg){ try{localStorage.setItem(KEY,leg);}catch(e){} return JSON.parse(leg); }
+    return null;
+  }catch(e){return null;}
+}
 function save(){
   try{ if(S) S._ts=Date.now(); localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){}
   empujar();
@@ -535,7 +544,7 @@ function vResumen(){
       '<div style="display:flex;align-items:center;gap:11px">'+
       '<div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:var(--ambar)">Aparta tu ahorro</div>'+
       '<div style="font-size:12px;color:var(--tx2);margin-top:3px">S/ '+sfmt(ahorroMes())+' de este mes siguen en tu cuenta, mezclados con todo.</div></div>'+
-      '<button class="btn" style="width:auto;padding:9px 13px;background:var(--ambar);color:#231700;font-size:12.5px" data-apart="1">Ya lo aparté</button>'+
+      '<button class="btn" style="width:auto;padding:9px 13px;background:var(--ambar);color:#231700;font-size:12.5px" data-apart="1">Ya lo aparté al banco</button>'+
       '</div></div>';
   }
 
@@ -763,7 +772,8 @@ function vAjustes(){
   if(S.historial.length){
     h+='<div class="blk"><div class="bh"><h3>Meses cerrados</h3><span class="bt">sobrante</span></div>';
     S.historial.forEach(function(x){
-      h+='<div class="dsg"><span class="n2">'+esc(x.nombre||x.key)+'</span>'+
+      h+='<div class="dsg" style="align-items:flex-start"><span class="n2">'+esc(x.nombre||x.key)+
+        (x.renunciado>0?'<br><span class="note2" style="font-size:11px">te aguantaste S/ '+fmt(x.renunciado)+'</span>':'')+'</span>'+
         '<span class="v2" style="color:'+(x.sobrante<0?"var(--rojo)":"var(--verde)")+'">'+
         (x.sobrante<0?"−":"+")+' '+fmt(Math.abs(x.sobrante))+'</span></div>';
     });
@@ -799,7 +809,7 @@ function vAjustes(){
       '<div class="two"><button class="btn gh" data-cancel="1">Cancelar</button><button class="btn dgr" data-reset2="1">Borrar todo</button></div>'
       :'<button class="btn dgr" data-reset="1">Empezar de cero</button>')+
     '</div>';
-  h+='<div class="note2" style="text-align:center;padding:8px 0 20px">Plata del Mes · v1 · hecho para ti</div>';
+  h+='<div class="note2" style="text-align:center;padding:8px 0 20px">Plata del Mes · hecho para ti</div>';
   return h;
 }
 
@@ -844,7 +854,7 @@ function wireVista(v){
     if(d.cerrar){ V.confirm="cerrar"; pintaVista(); return; }
     if(d.cerrar2){ cerrarMes(true); V.confirm=null; V.tab="resumen"; pintaNav(); pintaTabs(); pintaVista(); return; }
     if(d.reset){ V.confirm="reset"; pintaVista(); return; }
-    if(d.reset2){ try{localStorage.removeItem(KEY);}catch(e){} S=null; V.confirm=null; mount(); return; }
+    if(d.reset2){ try{localStorage.removeItem(KEY);localStorage.removeItem(KEY_LEGACY);}catch(e){} S=null; V.confirm=null; mount(); return; }
     if(d.cancel){ V.confirm=null; pintaVista(); return; }
   });
   v.addEventListener("change",function(e){
