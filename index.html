@@ -318,7 +318,7 @@ function d0(d){var x=new Date(d);x.setHours(0,0,0,0);return x;}
 /* ============ estado ============ */
 var KEY="plata_data";
 var KEY_LEGACY="plata_v3";
-var S=null, V={tab:"resumen",filtro:null,confirm:null}, SH={};
+var S=null, V={tab:"resumen",filtro:null,pago:null,confirm:null}, SH={};
 
 function load(){
   try{
@@ -651,17 +651,20 @@ function mvRow(g){
 
 /* ---- gastos ---- */
 function vGastos(){
-  var h='<div class="filt"><button class="fc'+(V.filtro?"":" on")+'" data-f="">Todo</button>'+
-    '<button class="fc'+(V.filtro==="__tj"?" on":"")+'" data-f="__tj"><i style="background:var(--ambar)"></i>Tarjeta</button>'+
-    '<button class="fc'+(V.filtro==="__ef"?" on":"")+'" data-f="__ef"><i style="background:var(--verde)"></i>Efectivo</button>'+
+  var h='<div class="pagos" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px">'+
+    '<button data-pf=""'+(!V.pago?' class="on"':'')+'>Todo</button>'+
+    '<button data-pf="efectivo"'+(V.pago==="efectivo"?' class="on"':'')+'>Efectivo</button>'+
+    '<button data-pf="credito" class="cr'+(V.pago==="credito"?" on":"")+'">Tarjeta</button>'+
+    '</div>'+
+    '<div class="filt"><button class="fc'+(V.filtro?"":" on")+'" data-f="">Todas las cuentas</button>'+
     S.cuentas.map(function(c){return '<button class="fc'+(V.filtro===c.id?" on":"")+'" data-f="'+c.id+'">'+
       '<i style="background:var(--c'+c.c+')"></i>'+esc(c.nombre)+'</button>';}).join("")+'</div>';
   var list=S.gastos.filter(function(g){
-    if(V.filtro==="__tj") return g.pago==="credito";
-    if(V.filtro==="__ef") return g.pago!=="credito";
+    if(V.pago==="credito"&&g.pago!=="credito") return false;
+    if(V.pago==="efectivo"&&g.pago==="credito") return false;
     return !V.filtro||g.cuenta===V.filtro;
   }).sort(function(a,b){return b.ts-a.ts;});
-  if(!list.length) return h+'<div class="blank">Sin gastos'+(V.filtro==="__tj"?" con tarjeta":V.filtro==="__ef"?" en efectivo":V.filtro?" en esta cuenta":" este mes")+'.</div>';
+  if(!list.length) return h+'<div class="blank">Sin gastos'+(V.pago==="credito"?" con tarjeta":V.pago==="efectivo"?" en efectivo":"")+(V.filtro?" en esta cuenta":!V.pago?" este mes":"")+'.</div>';
   var byd={},ord=[];
   list.forEach(function(g){var k=new Date(g.ts).toDateString();if(!byd[k]){byd[k]=[];ord.push(k);}byd[k].push(g);});
   h+='<div class="blk">';
@@ -822,11 +825,12 @@ function vAjustes(){
 /* ============ eventos de vista ============ */
 function wireVista(v){
   v.addEventListener("click",function(e){
-    var t=e.target.closest("[data-ct],[data-goto],[data-f],[data-del],[data-pag],[data-apart],[data-tjpag],[data-rguard],[data-rr],[data-sacar],[data-col],[data-rmc],[data-addc],[data-rmf],[data-addf],[data-rmq],[data-addq],[data-salir],[data-entrar],[data-cp],[data-dl],[data-rs],[data-cerrar],[data-cerrar2],[data-reset],[data-reset2],[data-cancel]");
+    var t=e.target.closest("[data-ct],[data-goto],[data-f],[data-pf],[data-del],[data-pag],[data-apart],[data-tjpag],[data-rguard],[data-rr],[data-sacar],[data-col],[data-rmc],[data-addc],[data-rmf],[data-addf],[data-rmq],[data-addq],[data-salir],[data-entrar],[data-cp],[data-dl],[data-rs],[data-cerrar],[data-cerrar2],[data-reset],[data-reset2],[data-cancel]");
     if(!t)return; var d=t.dataset;
     if(d.ct!==undefined&&d.ct){ abrirGasto(d.ct); return; }
     if(d.goto){ V.tab=d.goto; pintaNav(); pintaTabs(); pintaVista(); return; }
     if(d.f!==undefined){ V.filtro=d.f||null; pintaVista(); return; }
+    if(d.pf!==undefined){ V.pago=d.pf||null; pintaVista(); return; }
     if(d.del){ S.gastos=S.gastos.filter(function(g){return g.id!==d.del;}); save(); pintaVista(); toast("Gasto borrado"); return; }
     if(d.pag){
       var q=d.pag, tot=0;
